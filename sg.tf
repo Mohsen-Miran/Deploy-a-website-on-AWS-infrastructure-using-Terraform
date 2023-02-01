@@ -1,4 +1,4 @@
-# Create a security group 
+# Create a security group for web access
 resource "aws_security_group" "websrvs-sg" {
   provider    = aws.region
   name        = "WebSRVs-SG"
@@ -22,6 +22,30 @@ resource "aws_security_group" "websrvs-sg" {
     cidr_blocks = [var.external_ip]
   }
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.external_ip]
+  }
+}
+
+# Create a security group for SSH access
+resource "aws_security_group" "Only-ssh-sg" {
+  provider    = aws.region
+  name        = "OnlySSH-SG"
+  description = "Allow SSH Traffic"
+  vpc_id      = aws_vpc.vpc_useast.id
+  tags = {
+    Name = "OnlySSH-SG"
+  }
+  ingress {
+    description = "Allow 22 from our public IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.external_ip]
+  }
   egress {
     from_port   = 0
     to_port     = 0
