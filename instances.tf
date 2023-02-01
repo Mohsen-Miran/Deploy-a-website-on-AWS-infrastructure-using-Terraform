@@ -4,6 +4,8 @@ data "aws_ssm_parameter" "linuxAmi" {
   name     = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 }
 
+data "aws_availability_zones" "available" {}
+
 #Create and bootstrap EC2 in us-east-1
 resource "aws_instance" "WebSRVs" {
   provider                    = aws.region
@@ -20,9 +22,23 @@ resource "aws_instance" "WebSRVs" {
   }
 
   depends_on = [aws_route_table.internet_route]
+
+  provisioner "remote-exec" {
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.WebSRVs-Key.private_key_pem
+    host        = aws_instance.WebSRVs[0].public_ip
+  }
+  inline = [
+     "sudo yum -y update",
+	 "sudo yum -y install httpd php git",
+	 "sudo systemctl restart httpd",
+	 "sudo systemctl enable httpd",
+   ]
+ }
+
 }
-
-
 
 
 
