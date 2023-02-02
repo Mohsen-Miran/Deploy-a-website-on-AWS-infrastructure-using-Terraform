@@ -14,7 +14,7 @@ resource "aws_instance" "WebSRVs" {
   instance_type               = var.instance-type
   key_name                    = aws_key_pair.app-instance-key.key_name
   associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.websrvs-sg.id,aws_security_group.Only-ssh-sg.id]  
+  vpc_security_group_ids      = [aws_security_group.websrvs-sg.id, aws_security_group.Only-ssh-sg.id]
   subnet_id                   = aws_subnet.subnet_1.id
 
   tags = {
@@ -24,19 +24,19 @@ resource "aws_instance" "WebSRVs" {
   depends_on = [aws_route_table.internet_route]
 
   provisioner "remote-exec" {
-  connection {
-    type        = "ssh"
-    user        = "ec2-user"
-    private_key = tls_private_key.WebSRVs-Key.private_key_pem
-    host        = aws_instance.WebSRVs[0].public_ip
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = tls_private_key.WebSRVs-Key.private_key_pem
+      host        = aws_instance.WebSRVs[0].public_ip
+    }
+    inline = [
+      "sudo yum -y update",
+      "sudo yum -y install httpd php git",
+      "sudo systemctl restart httpd",
+      "sudo systemctl enable httpd",
+    ]
   }
-  inline = [
-     "sudo yum -y update",
-	 "sudo yum -y install httpd php git",
-	 "sudo systemctl restart httpd",
-	 "sudo systemctl enable httpd",
-   ]
- }
 
 }
 
