@@ -22,23 +22,81 @@ resource "aws_instance" "WebSRVs" {
   }
 
   depends_on = [aws_route_table.internet_route]
+}
 
+
+#Create a EBS volume for data persistence
+resource "aws_ebs_volume" "ebsvol1" {
+  availability_zone = aws_instance.WebSRVs[0].availability_zone
+  #This is the size of EBS volume
+  size  = 5
+  count = 2
+  tags = {
+    Name = join("_", ["EBSVolume", count.index + 1])
+  }
+}
+
+#Attatch the volume to first instance
+resource "aws_volume_attachment" "attach-ebsvol1" {
+  depends_on   = [aws_ebs_volume.ebsvol1]
+  device_name  = "/dev/sdh"
+  volume_id    = aws_ebs_volume.ebsvol1[0].id
+  instance_id  = aws_instance.WebSRVs[0].id
+  force_detach = true
+}
+
+#Attatch the volume to second instance
+resource "aws_volume_attachment" "attach-ebsvol2" {
+  depends_on   = [aws_ebs_volume.ebsvol1]
+  device_name  = "/dev/sdh"
+  volume_id    = aws_ebs_volume.ebsvol1[1].id
+  instance_id  = aws_instance.WebSRVs[1].id
+  force_detach = true
+}
+
+
+#Mount the volume to first instance
+resource "null_resource" "nullmount1" {
+  depends_on = [aws_volume_attachment.attach-ebsvol1]
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.WebSRVs-Key.private_key_pem
+    host        = aws_instance.WebSRVs[0].public_ip
+  }
   provisioner "remote-exec" {
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = tls_private_key.WebSRVs-Key.private_key_pem
-      host        = aws_instance.WebSRVs[0].public_ip
-    }
     inline = [
       "sudo yum -y update",
       "sudo yum -y install httpd php git",
       "sudo systemctl restart httpd",
       "sudo systemctl enable httpd",
+      "sudo mkfs.ext4 /dev/xvdh",
+      "sudo mount /dev/xdvh /var/www/html",
+      "sudo rm -rf /var/www/html/*",
+      "sudo git clone https://github.com/Mohsen-Miran/Deploy-a-website-on-AWS-infrastructure-using-Terraform  /var/www/html"
     ]
   }
-
 }
 
-
-
+#Mount the volume to first instance
+resource "null_resource" "nullmount2" {
+  depends_on = [aws_volume_attachment.attach-ebsvol1]
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.WebSRVs-Key.private_key_pem
+    host        = aws_instance.WebSRVs[1].public_ip
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum -y update",
+      "sudo yum -y install httpd php git",
+      "sudo systemctl restart httpd",
+      "sudo systemctl enable httpd",
+      "sudo mkfs.ext4 /dev/xvdh",
+      "sudo mount /dev/xdvh /var/www/html",
+      "sudo rm -rf /var/www/html/*",
+      "sudo git clone https://github.com/Mohsen-Miran/Deploy-a-website-on-AWS-infrastructure-using-Terraform  /var/www/html"
+    ]
+  }
+}
